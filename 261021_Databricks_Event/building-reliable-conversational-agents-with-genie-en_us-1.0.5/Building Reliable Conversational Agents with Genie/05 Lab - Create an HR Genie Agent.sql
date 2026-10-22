@@ -1,0 +1,865 @@
+-- Databricks notebook source
+-- MAGIC %md
+-- MAGIC ![DB Academy](https://files.training.databricks.com/binder/prod_main/building-reliable-conversational-agents-with-genie-en_us-1.0.5/images/20260929T112315Z/Building Reliable Conversational Agents with Genie/Includes/images/db-academy.png)
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC # Lab - Create an HR Genie Agent
+-- MAGIC
+-- MAGIC #### Duration: ~10-15 Minutes
+-- MAGIC
+-- MAGIC ## Overview
+-- MAGIC
+-- MAGIC In this lab, you will apply the skills from the previous demonstrations to create a **new Genie Agent** on a different dataset.
+-- MAGIC
+-- MAGIC You will work with an **HR dataset** that contains employee profiles, compensation details, manager information, and resignation records. 
+-- MAGIC
+-- MAGIC Your goal is to explore the data, create a Genie Agent, and add initial benchmarks.
+-- MAGIC
+-- MAGIC **In this lab, you will NOT add any metadata, instructions, or SQL logic to the Knowledge Store.** That comes in the next lab.
+-- MAGIC
+-- MAGIC ## Learning Objectives
+-- MAGIC
+-- MAGIC By the end of this lab, you will be able to:
+-- MAGIC
+-- MAGIC 1. **Explore a new dataset** and understand its tables, columns, and relationships.
+-- MAGIC 2. **Create a Genie Agent** using the HR tables.
+-- MAGIC 3. **Define an audience and purpose** for the Genie Agent.
+-- MAGIC 4. **Add benchmark questions** with ground truth SQL to establish a baseline.
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ## REQUIRED - DATA SETUP
+-- MAGIC
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #f44336;
+-- MAGIC   background: #ffebee;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#c62828; margin-bottom:6px; font-size: 1.1em;">Data Setup</strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC Before starting this notebook, make sure you ran the **02 Demo - Bakehouse Setup and Data Exploration** notebook once to set up the course data.
+-- MAGIC   </div>
+-- MAGIC </div>
+-- MAGIC
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ## REQUIRED - SELECT A COMPUTE ENVIRONMENT
+-- MAGIC
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #f44336;
+-- MAGIC   background: #ffebee;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#c62828; margin-bottom:6px; font-size: 1.1em;">Select a Serverless SQL Warehouse</strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC Before starting this notebook, select the required compute environment listed below.
+-- MAGIC
+-- MAGIC - **Serverless SQL Warehouse (2X-Small is sufficient)**
+-- MAGIC   - Select **Compute** > **More** > **SQL Warehouse** > Select a SQL Warehouse you have access to.
+-- MAGIC
+-- MAGIC **NOTE:** This notebook was **developed and tested using Serverless SQL Warehouse**. Other compute options may work but are not guaranteed to behave the same or support all features demonstrated.
+-- MAGIC   </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ## A. Scenario, Audience, and Questions
+-- MAGIC
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #1976d2;
+-- MAGIC   background: #e3f2fd;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#0d47a1; margin-bottom:6px; font-size: 1.1em;">
+-- MAGIC     Scenario
+-- MAGIC   </strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC You are an **HR People Analytics team member** at a mid-size company. 
+-- MAGIC
+-- MAGIC Leadership is concerned about rising attrition and wants better visibility into workforce trends.
+-- MAGIC
+-- MAGIC You met with stakeholders across the **HR Business Partner team**, **People Analytics**, and several **Department Heads** to understand what questions they need answered on a regular basis. They currently rely on ad-hoc SQL requests or spreadsheets and want a **self-service analytics tool** they can use without writing SQL.
+-- MAGIC
+-- MAGIC You have been asked to build a **Genie Agent** to support this.
+-- MAGIC
+-- MAGIC   </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC <!--
+-- MAGIC   HOW TO DIM A STEP DURING TEACHING:
+-- MAGIC   Each step card has its full-color inline styles AND a dimmed copy in a comment block above it.
+-- MAGIC   To dim a step: replace its <div ...> opening tag with the commented "DIM" version below it.
+-- MAGIC   To re-color: do the reverse.
+-- MAGIC -->
+-- MAGIC
+-- MAGIC <div style="max-width: 1280px; margin: 0 auto; font-family: sans-serif; color: #0b2026;">
+-- MAGIC
+-- MAGIC <!-- 6-STEP FLOW -->
+-- MAGIC <div style="display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr auto 1fr auto 1fr; gap: 0; align-items: stretch;">
+-- MAGIC
+-- MAGIC   <!-- STEP 1 (active) -->
+-- MAGIC   <div style="background: #F9F7F4; border: 3px solid #2574B5; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #2574B5; line-height: 1; margin-bottom: 8px;">1</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #0b2026; line-height: 1.35;">Start with purpose<br>and questions</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #618794; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC
+-- MAGIC   <!-- STEP 2 (active) -->
+-- MAGIC   <div style="background: #F9F7F4; border: 3px solid #02A36F; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #02A36F; line-height: 1; margin-bottom: 8px;">2</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #0b2026; line-height: 1.35;">Select a minimal<br>data slice</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #C2C2C2; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC
+-- MAGIC   <!-- STEP 3 (DIMMED) -->
+-- MAGIC   <!-- ACTIVE: <div style="background: #F9F7F4; border: 3px solid #F8A805; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;"> -->
+-- MAGIC   <div style="background: #EEEDE9; border: 3px solid #C2C2C2; border-radius: 10px; padding: 16px 12px; box-shadow: none; text-align: center; min-width: 0; opacity: 0.7;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #90A5B1; line-height: 1; margin-bottom: 8px;">3</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #5A6F77; line-height: 1.35;">Add metadata<br>and synonyms</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #C2C2C2; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC
+-- MAGIC   <!-- STEP 4 (DIMMED) -->
+-- MAGIC   <!-- ACTIVE: <div style="background: #F9F7F4; border: 3px solid #FF5F46; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;"> -->
+-- MAGIC   <div style="background: #EEEDE9; border: 3px solid #C2C2C2; border-radius: 10px; padding: 16px 12px; box-shadow: none; text-align: center; min-width: 0; opacity: 0.7;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #90A5B1; line-height: 1; margin-bottom: 8px;">4</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #5A6F77; line-height: 1.35;">Encode business<br>logic in SQL</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #C2C2C2; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC
+-- MAGIC   <!-- STEP 5 (DIMMED) -->
+-- MAGIC   <!-- ACTIVE: <div style="background: #F9F7F4; border: 3px solid #98182A; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;"> -->
+-- MAGIC   <div style="background: #EEEDE9; border: 3px solid #C2C2C2; border-radius: 10px; padding: 16px 12px; box-shadow: none; text-align: center; min-width: 0; opacity: 0.7;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #90A5B1; line-height: 1; margin-bottom: 8px;">5</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #5A6F77; line-height: 1.35;">Add light global<br>text instructions</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #C2C2C2; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC
+-- MAGIC   <!-- STEP 6 (DIMMED) -->
+-- MAGIC   <!-- ACTIVE: <div style="background: #F9F7F4; border: 3px solid #1C3037; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;"> -->
+-- MAGIC   <div style="background: #EEEDE9; border: 3px solid #C2C2C2; border-radius: 10px; padding: 16px 12px; box-shadow: none; text-align: center; min-width: 0; opacity: 0.7;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #90A5B1; line-height: 1; margin-bottom: 8px;">6</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #5A6F77; line-height: 1.35;">Test, benchmark,<br>and iterate with users</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC
+-- MAGIC ### Audience and Questions
+-- MAGIC
+-- MAGIC **Target Audience:** HR Business Partners, People Analytics team, Department Heads
+-- MAGIC
+-- MAGIC After meeting with stakeholders, here are the questions they want to ask:
+-- MAGIC
+-- MAGIC - How many active employees do we have?
+-- MAGIC - What is the average salary by department?
+-- MAGIC - Who are our most underpaid employees?
+-- MAGIC - Which managers have the highest attrition on their teams?
+-- MAGIC - What are the top reasons employees are resigning?
+-- MAGIC - What does headcount look like by region?
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #f44336;
+-- MAGIC   background: #ffebee;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#c62828; margin-bottom:6px; font-size: 1.1em;">Important: No Metadata, Instructions, or SQL Logic Added Yet</strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC In this first lab, you are **not** adding any of the following to the Genie Agent:
+-- MAGIC
+-- MAGIC - **Table or column metadata** - descriptions and synonyms
+-- MAGIC - **SQL logic** - joins, SQL expressions, or example queries
+-- MAGIC - **Sample questions** - example queries for Genie
+-- MAGIC - **Text instructions** - behavioral guidance
+-- MAGIC
+-- MAGIC This is intentional. You will add these in the next lab to iteratively improve Genie's accuracy.
+-- MAGIC   </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## B. Classroom Setup
+-- MAGIC
+-- MAGIC 1. Run the cell below to initialize your environment. This setup step will:
+-- MAGIC     - Assume that you have **permission to create a catalog**
+-- MAGIC     - Create a catalog named **labuser_YOUR_USER_NAME**
+-- MAGIC     - Create a schema named **genie_course_hr**
+-- MAGIC     - Create the necessary HR tables
+
+-- COMMAND ----------
+
+-- MAGIC %run ./Includes/Classroom-Setup-lab-setup
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC 2. Run the cell below to confirm the following **4 HR tables** exist in your schema:
+-- MAGIC
+-- MAGIC     - **employees**
+-- MAGIC     - **compensation**
+-- MAGIC     - **managers**
+-- MAGIC     - **resignations**
+
+-- COMMAND ----------
+
+SHOW TABLES IN genie_course_hr;
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## C. HR Data Exploration
+-- MAGIC
+-- MAGIC Before creating a Genie Agent, you need to understand the data it will use.
+-- MAGIC
+-- MAGIC > The **HR dataset** represents a fictional company's human resources data. It includes employee profiles, compensation details, manager information, and resignation records.
+-- MAGIC
+-- MAGIC | Table | Description | Rows |
+-- MAGIC |-------|-------------|------|
+-- MAGIC | `employees` | Employee profiles including name, department, region, job title, and employment status | 800 |
+-- MAGIC | `compensation` | Compensation details including base salary, market benchmark, comp ratio, and last raise | 800 |
+-- MAGIC | `managers` | Manager profiles including department, region, team size, and performance rating | 60 |
+-- MAGIC | `resignations` | Resignation records including reason code, exit survey score, and last day | 140 |
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ### C1. Preview the Tables
+-- MAGIC Run the queries below to quickly preview each table and understand the data you will be working with.
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC 1. View the **employees** table.
+-- MAGIC
+-- MAGIC     Notice it contains:
+-- MAGIC       - an **employee_id** column (primary key)
+-- MAGIC       - employee details such as name, department, region, hire date, and job title
+-- MAGIC       - a **manager_id** column linking employees to their manager
+-- MAGIC       - a **status** column with values: `Active`, `Resigned`, or `Terminated`
+
+-- COMMAND ----------
+
+-- Preview the employees table
+SELECT *
+FROM employees;
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC 2. View the **compensation** table.
+-- MAGIC
+-- MAGIC     Notice it contains:
+-- MAGIC       - an **employee_id** column linking to the employees table
+-- MAGIC       - salary details: **base_salary** and **market_benchmark**
+-- MAGIC       - a **comp_ratio** (base_salary / market_benchmark) indicating whether an employee is paid above or below market
+-- MAGIC       - raise history: **last_raise_date** and **last_raise_pct**
+
+-- COMMAND ----------
+
+-- Preview the compensation table
+SELECT *
+FROM compensation;
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC 3. View the **managers** table.
+-- MAGIC
+-- MAGIC     Notice it contains:
+-- MAGIC       - a **manager_id** column (primary key)
+-- MAGIC       - manager details: name, department, and region
+-- MAGIC       - a **team_size** column and **performance_rating**
+-- MAGIC       - **start_date** and **end_date** columns (end_date is NULL for active managers)
+
+-- COMMAND ----------
+
+-- Preview the managers table
+SELECT *
+FROM managers;
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC 4. View the **resignations** table.
+-- MAGIC
+-- MAGIC     Notice it contains:
+-- MAGIC       - a **resignation_id** column
+-- MAGIC       - an **employee_id** column linking to the employees table
+-- MAGIC       - **resignation_date** and **last_day** for tracking departure timeline
+-- MAGIC       - a **reason_code** with values such as: `Compensation`, `Career Growth`, `Manager Relationship`, `Personal`, `Relocation`, `Work-Life Balance`
+-- MAGIC       - an **exit_survey_score** (1-5 scale)
+
+-- COMMAND ----------
+
+-- Preview the resignations table
+SELECT *
+FROM resignations;
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ### C2. Understand the Data Relationships
+-- MAGIC
+-- MAGIC 1. Understanding these relationships is important because Genie will need to join these tables when answering questions that span multiple tables.
+-- MAGIC
+-- MAGIC For example:
+-- MAGIC
+-- MAGIC - *"What is the average salary by department?"*
+-- MAGIC - *"Which managers have the most resignations?"*
+-- MAGIC
+-- MAGIC The HR tables are related through the following keys:
+-- MAGIC <br></br>
+-- MAGIC <div style="max-width: 1280px; margin: 0 auto; font-family: sans-serif; color: #0b2026;">
+-- MAGIC
+-- MAGIC <!-- 4 TABLE CARDS -->
+-- MAGIC <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 14px; align-items: stretch; margin-bottom: 22px;">
+-- MAGIC   <div style="background: #FFFFFF; border: 2px solid #1B5162; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(27,49,57,0.06);">
+-- MAGIC     <div style="background: #1B5162; color: white; padding: 10px 14px; font-family: monospace; font-size: 15pt; font-weight: 700;">employees</div>
+-- MAGIC     <div style="padding: 12px 14px; font-family: monospace; font-size: 13pt; line-height: 1.8;">
+-- MAGIC       <div style="color: #0b2026;"><b style="color: #1B5162;">PK</b> &nbsp;employee_id</div>
+-- MAGIC       <div style="color: #0b2026;"><b style="color: #98102A;">FK</b> &nbsp;manager_id</div>
+-- MAGIC       <div style="color: #5A6F77;">first_name</div>
+-- MAGIC       <div style="color: #5A6F77;">last_name</div>
+-- MAGIC       <div style="color: #5A6F77;">department</div>
+-- MAGIC       <div style="color: #5A6F77;">region</div>
+-- MAGIC       <div style="color: #5A6F77;">hire_date</div>
+-- MAGIC       <div style="color: #5A6F77;">job_title</div>
+-- MAGIC       <div style="color: #5A6F77;">job_level</div>
+-- MAGIC       <div style="color: #5A6F77;">status</div>
+-- MAGIC     </div>
+-- MAGIC   </div>
+-- MAGIC   <div style="background: #FFFFFF; border: 2px solid #1B5162; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(27,49,57,0.06);">
+-- MAGIC     <div style="background: #1B5162; color: white; padding: 10px 14px; font-family: monospace; font-size: 15pt; font-weight: 700;">compensation</div>
+-- MAGIC     <div style="padding: 12px 14px; font-family: monospace; font-size: 13pt; line-height: 1.8;">
+-- MAGIC       <div style="color: #0b2026;"><b style="color: #98102A;">FK</b> &nbsp;employee_id</div>
+-- MAGIC       <div style="color: #5A6F77;">base_salary</div>
+-- MAGIC       <div style="color: #5A6F77;">market_benchmark</div>
+-- MAGIC       <div style="color: #5A6F77;">comp_ratio</div>
+-- MAGIC       <div style="color: #5A6F77;">last_raise_date</div>
+-- MAGIC       <div style="color: #5A6F77;">last_raise_pct</div>
+-- MAGIC     </div>
+-- MAGIC   </div>
+-- MAGIC   <div style="background: #FFFFFF; border: 2px solid #1B5162; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(27,49,57,0.06);">
+-- MAGIC     <div style="background: #1B5162; color: white; padding: 10px 14px; font-family: monospace; font-size: 15pt; font-weight: 700;">managers</div>
+-- MAGIC     <div style="padding: 12px 14px; font-family: monospace; font-size: 13pt; line-height: 1.8;">
+-- MAGIC       <div style="color: #0b2026;"><b style="color: #1B5162;">PK</b> &nbsp;manager_id</div>
+-- MAGIC       <div style="color: #5A6F77;">manager_name</div>
+-- MAGIC       <div style="color: #5A6F77;">department</div>
+-- MAGIC       <div style="color: #5A6F77;">region</div>
+-- MAGIC       <div style="color: #5A6F77;">team_size</div>
+-- MAGIC       <div style="color: #5A6F77;">start_date</div>
+-- MAGIC       <div style="color: #5A6F77;">end_date</div>
+-- MAGIC       <div style="color: #5A6F77;">performance_rating</div>
+-- MAGIC     </div>
+-- MAGIC   </div>
+-- MAGIC   <div style="background: #FFFFFF; border: 2px solid #1B5162; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 6px rgba(27,49,57,0.06);">
+-- MAGIC     <div style="background: #1B5162; color: white; padding: 10px 14px; font-family: monospace; font-size: 15pt; font-weight: 700;">resignations</div>
+-- MAGIC     <div style="padding: 12px 14px; font-family: monospace; font-size: 13pt; line-height: 1.8;">
+-- MAGIC       <div style="color: #0b2026;"><b style="color: #1B5162;">PK</b> &nbsp;resignation_id</div>
+-- MAGIC       <div style="color: #0b2026;"><b style="color: #98102A;">FK</b> &nbsp;employee_id</div>
+-- MAGIC       <div style="color: #5A6F77;">resignation_date</div>
+-- MAGIC       <div style="color: #5A6F77;">last_day</div>
+-- MAGIC       <div style="color: #5A6F77;">reason_code</div>
+-- MAGIC       <div style="color: #5A6F77;">exit_survey_score</div>
+-- MAGIC     </div>
+-- MAGIC   </div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC <!-- RELATIONSHIPS (simple list) -->
+-- MAGIC <div style="background: #F8F9FC; border: 1px solid #EEEDE9; border-radius: 8px; padding: 16px 20px;">
+-- MAGIC   <div style="font-size: 13pt; font-weight: 700; letter-spacing: 1.5px; color: #1B5162; text-transform: uppercase; margin-bottom: 10px;">Relationships</div>
+-- MAGIC   <div style="font-size: 14pt; line-height: 2; color: #0b2026;">
+-- MAGIC     <div><span style="font-family: monospace; font-weight: 700;">employees</span> &nbsp;&mdash;&mdash;&nbsp; <span style="background: #1B5162; color: white; font-size: 12pt; font-weight: 700; padding: 1px 8px; border-radius: 10px;">1 : 1</span> &nbsp;&mdash;&mdash;&nbsp; <span style="font-family: monospace; font-weight: 700;">compensation</span> &nbsp; on <code style="background: #FFFFFF; border: 1px solid #EEEDE9; padding: 2px 6px; border-radius: 3px; font-size: 13pt;">employee_id</code></div>
+-- MAGIC     <div><span style="font-family: monospace; font-weight: 700;">employees</span> &nbsp;&mdash;&mdash;&nbsp; <span style="background: #1B5162; color: white; font-size: 12pt; font-weight: 700; padding: 1px 8px; border-radius: 10px;">Many : 1</span> &nbsp;&mdash;&mdash;&nbsp; <span style="font-family: monospace; font-weight: 700;">managers</span> &nbsp; on <code style="background: #FFFFFF; border: 1px solid #EEEDE9; padding: 2px 6px; border-radius: 3px; font-size: 13pt;">manager_id</code></div>
+-- MAGIC     <div><span style="font-family: monospace; font-weight: 700;">employees</span> &nbsp;&mdash;&mdash;&nbsp; <span style="background: #1B5162; color: white; font-size: 12pt; font-weight: 700; padding: 1px 8px; border-radius: 10px;">1 : 0 or 1</span> &nbsp;&mdash;&mdash;&nbsp; <span style="font-family: monospace; font-weight: 700;">resignations</span> &nbsp; on <code style="background: #FFFFFF; border: 1px solid #EEEDE9; padding: 2px 6px; border-radius: 3px; font-size: 13pt;">employee_id</code></div>
+-- MAGIC   </div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #1976d2;
+-- MAGIC   background: #e3f2fd;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#0d47a1; margin-bottom:6px; font-size: 1.1em;">
+-- MAGIC     A Note on Data Exploration
+-- MAGIC   </strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC In production scenarios, it is important to **thoroughly explore and profile your data** before building a Genie Agent.
+-- MAGIC
+-- MAGIC Understanding distributions, nulls, edge cases, and business logic embedded in the data.
+-- MAGIC
+-- MAGIC For this training, we have done a **brief, focused exploration**. Just enough to understand the tables and relationships before moving on to Genie.
+-- MAGIC
+-- MAGIC   </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ## D. Genie Project Architecture
+-- MAGIC <br></br>
+-- MAGIC <div style="max-width: 1280px; margin: 0 auto; font-family: sans-serif; color: #0b2026;">
+-- MAGIC
+-- MAGIC <!-- TITLE BAR -->
+-- MAGIC <div style="background: #1B5162; color: white; border-radius: 8px; padding: 20px 28px; margin-bottom: 18px;">
+-- MAGIC   <div style="font-size: 22pt; font-weight: 700; margin-bottom: 6px;">HR Genie Project Architecture</div>
+-- MAGIC   <div style="font-size: 15pt; font-weight: 400; line-height: 1.45; opacity: 0.95;">Our goal is to link all of our Unity Catalog HR tables to a Genie Agent where HR business users can <b>ask questions in natural language to obtain results.</b></div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC <!-- BEST PRACTICE CALLOUT -->
+-- MAGIC <div style="background: #FFF6F4; border-left: 4px solid #FF5F46; border-radius: 6px; padding: 12px 18px; margin-bottom: 22px; font-size: 14pt; line-height: 1.5;">
+-- MAGIC   <span style="font-size: 12pt; font-weight: 700; letter-spacing: 1.5px; color: #B83A24; text-transform: uppercase; display: block; margin-bottom: 4px;">Best Practice</span>
+-- MAGIC   It&rsquo;s best for a <b>data domain expert</b> to set up a Genie Agent with <b>stakeholder involvement</b>.
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC <!-- FAN-IN/FAN-OUT ARCHITECTURE -->
+-- MAGIC <div style="display: grid; grid-template-columns: 1fr auto 1.1fr auto 0.95fr; gap: 0; align-items: center;">
+-- MAGIC
+-- MAGIC   <!-- LEFT COLUMN: SOURCE TABLES -->
+-- MAGIC   <div>
+-- MAGIC     <div style="font-size: 12pt; font-weight: 700; letter-spacing: 2px; color: #1B5162; text-transform: uppercase; text-align: center; margin-bottom: 12px;">Unity Catalog Tables</div>
+-- MAGIC     <div style="display: flex; flex-direction: column; gap: 10px;">
+-- MAGIC     <div style="background: #FFFFFF; border: 2px solid #1B5162; border-left: 6px solid #1B5162; border-radius: 8px; padding: 10px 14px; box-shadow: 0 1px 4px rgba(27,49,57,0.06);">
+-- MAGIC       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+-- MAGIC         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B5162" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"></path><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"></path></svg>
+-- MAGIC         <div style="font-family: monospace; font-size: 14pt; font-weight: 700; color: #0b2026;">employees</div>
+-- MAGIC       </div>
+-- MAGIC       <div style="font-size: 14pt; color: #5A6F77; font-style: italic; line-height: 1.35; padding-left: 30px;">Employee profiles and status</div>
+-- MAGIC     </div>
+-- MAGIC     <div style="background: #FFFFFF; border: 2px solid #1B5162; border-left: 6px solid #1B5162; border-radius: 8px; padding: 10px 14px; box-shadow: 0 1px 4px rgba(27,49,57,0.06);">
+-- MAGIC       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+-- MAGIC         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B5162" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"></path><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"></path></svg>
+-- MAGIC         <div style="font-family: monospace; font-size: 14pt; font-weight: 700; color: #0b2026;">compensation</div>
+-- MAGIC       </div>
+-- MAGIC       <div style="font-size: 14pt; color: #5A6F77; font-style: italic; line-height: 1.35; padding-left: 30px;">Salary and market benchmarks</div>
+-- MAGIC     </div>
+-- MAGIC     <div style="background: #FFFFFF; border: 2px solid #1B5162; border-left: 6px solid #1B5162; border-radius: 8px; padding: 10px 14px; box-shadow: 0 1px 4px rgba(27,49,57,0.06);">
+-- MAGIC       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+-- MAGIC         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B5162" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"></path><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"></path></svg>
+-- MAGIC         <div style="font-family: monospace; font-size: 14pt; font-weight: 700; color: #0b2026;">managers</div>
+-- MAGIC       </div>
+-- MAGIC       <div style="font-size: 14pt; color: #5A6F77; font-style: italic; line-height: 1.35; padding-left: 30px;">Manager profiles and ratings</div>
+-- MAGIC     </div>
+-- MAGIC     <div style="background: #FFFFFF; border: 2px solid #1B5162; border-left: 6px solid #1B5162; border-radius: 8px; padding: 10px 14px; box-shadow: 0 1px 4px rgba(27,49,57,0.06);">
+-- MAGIC       <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+-- MAGIC         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#1B5162" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"></path><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"></path></svg>
+-- MAGIC         <div style="font-family: monospace; font-size: 14pt; font-weight: 700; color: #0b2026;">resignations</div>
+-- MAGIC       </div>
+-- MAGIC       <div style="font-size: 14pt; color: #5A6F77; font-style: italic; line-height: 1.35; padding-left: 30px;">Departure reasons and surveys</div>
+-- MAGIC     </div>
+-- MAGIC     </div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <!-- LEFT ARROW BUNDLE -->
+-- MAGIC   <div style="display: flex; flex-direction: column; align-items: center; padding: 0 14px;">
+-- MAGIC     <div style="font-size: 32pt; color: #618794; line-height: 1;">&rarr;</div>
+-- MAGIC     <div style="font-size: 12pt; color: #618794; font-style: italic; margin-top: 4px; text-align: center; max-width: 90px;">governed data</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <!-- CENTER: GENIE HUB -->
+-- MAGIC   <div style="background: #F9F7F4; border: 3px solid #FF5F46; border-radius: 14px; padding: 22px 18px; box-shadow: 0 6px 20px rgba(255,95,70,0.18); text-align: center; position: relative;">
+-- MAGIC     <div style="position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #FF5F46; color: white; font-size: 11pt; font-weight: 700; letter-spacing: 1.5px; padding: 3px 14px; border-radius: 12px;">GENIE AGENT</div>
+-- MAGIC     <div style="margin: 10px 0 14px 0;">
+-- MAGIC     
+-- MAGIC     </div>
+-- MAGIC     <div style="font-size: 16pt; font-weight: 700; color: #0b2026; line-height: 1.3; margin-bottom: 10px;">Ask questions in<br>natural language</div>
+-- MAGIC     <div style="background: #FFFFFF; border: 1.5px dashed #FF5F46; border-radius: 18px 18px 18px 4px; padding: 8px 14px; font-size: 13pt; font-style: italic; color: #5A6F77; text-align: left; margin-top: 12px;">
+-- MAGIC       &ldquo;Which managers have the most resignations this year?&rdquo;
+-- MAGIC     </div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <!-- RIGHT ARROW BUNDLE -->
+-- MAGIC   <div style="display: flex; flex-direction: column; align-items: center; padding: 0 14px;">
+-- MAGIC     <div style="font-size: 32pt; color: #618794; line-height: 1;">&rarr;</div>
+-- MAGIC     <div style="font-size: 12pt; color: #618794; font-style: italic; margin-top: 4px; text-align: center; max-width: 90px;">answers &amp; charts</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <!-- RIGHT COLUMN: CONSUMERS -->
+-- MAGIC   <div>
+-- MAGIC     <div style="font-size: 12pt; font-weight: 700; letter-spacing: 2px; color: #00A972; text-transform: uppercase; text-align: center; margin-bottom: 12px;">Consumers</div>
+-- MAGIC     <div style="display: flex; flex-direction: column; gap: 12px;">
+-- MAGIC     <div style="background: #FFFFFF; border: 2px solid #00A972; border-left: 6px solid #00A972; border-radius: 8px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(27,49,57,0.06);">
+-- MAGIC       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00A972" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+-- MAGIC       <div style="font-size: 15pt; font-weight: 700; color: #0b2026;">HR Business Partners</div>
+-- MAGIC     </div>
+-- MAGIC     <div style="background: #FFFFFF; border: 2px solid #00A972; border-left: 6px solid #00A972; border-radius: 8px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(27,49,57,0.06);">
+-- MAGIC       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00A972" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+-- MAGIC       <div style="font-size: 15pt; font-weight: 700; color: #0b2026;">People Analytics</div>
+-- MAGIC     </div>
+-- MAGIC     <div style="background: #FFFFFF; border: 2px solid #00A972; border-left: 6px solid #00A972; border-radius: 8px; padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 1px 4px rgba(27,49,57,0.06);">
+-- MAGIC       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00A972" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+-- MAGIC       <div style="font-size: 15pt; font-weight: 700; color: #0b2026;">Department Heads</div>
+-- MAGIC     </div>
+-- MAGIC     </div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC <!-- BOTTOM BAND: foundation note -->
+-- MAGIC <div style="margin-top: 24px; background: linear-gradient(135deg, #1B5162 0%, #0b2026 100%); color: #ffffff; border-radius: 8px; padding: 14px 22px; text-align: center;">
+-- MAGIC   <div style="font-size: 11pt; letter-spacing: 2.5px; text-transform: uppercase; color: #B7CDD5; font-weight: 700; margin-bottom: 4px;">Foundation</div>
+-- MAGIC   <div style="font-size: 14pt; color: #ffffff;">Unity Catalog &middot; one governed copy of your data &middot; permissions enforced end to end</div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## E. Create the HR Genie Agent
+-- MAGIC
+-- MAGIC Now that you understand the data, create a Genie Agent for the HR dataset.
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC <div style="max-width: 1200px; margin: 0 auto; font-family: sans-serif;">
+-- MAGIC
+-- MAGIC <div style="background: #F9F7F4; border-radius: 10px; padding: 22px 26px; box-shadow: 0 2px 8px rgba(27,49,57,0.06); border-top: 6px solid #FF5F46;">
+-- MAGIC
+-- MAGIC   <img src="https://files.training.databricks.com/binder/prod_main/building-reliable-conversational-agents-with-genie-en_us-1.0.5/images/20260929T112315Z/Building Reliable Conversational Agents with Genie/Includes/images/icons/genie-code.png" style="height: 44px; margin-bottom: 10px;">
+-- MAGIC
+-- MAGIC   <div style="font-size: 18pt; font-weight: 700; color: #0b2026; margin-bottom: 12px;">
+-- MAGIC     Need Help? Use Genie Code
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="font-size: 15pt; color: #0b2026; line-height: 1.6; margin-bottom: 16px;">
+-- MAGIC     Genie is an AI-powered assistant that can help you as you work through this lab.
+-- MAGIC     Use it if you get stuck or want a little extra guidance.
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="display: flex; gap: 10px;">
+-- MAGIC     <a href="https://docs.databricks.com/aws/en/genie-code/" target="_blank" style="display: inline-block; background: #1B5162; color: white; font-size: 14pt; font-weight: 700; padding: 10px 22px; border-radius: 8px; text-decoration: none;">
+-- MAGIC       AWS →
+-- MAGIC     </a>
+-- MAGIC     <a href="https://learn.microsoft.com/en-us/azure/databricks/genie-code/use-genie-code" target="_blank" style="display: inline-block; background: #1B5162; color: white; font-size: 14pt; font-weight: 700; padding: 10px 22px; border-radius: 8px; text-decoration: none;">
+-- MAGIC       Azure →
+-- MAGIC     </a>
+-- MAGIC     <a href="https://docs.databricks.com/gcp/en/genie-code/" target="_blank" style="display: inline-block; background: #1B5162; color: white; font-size: 14pt; font-weight: 700; padding: 10px 22px; border-radius: 8px; text-decoration: none;">
+-- MAGIC       GCP →
+-- MAGIC     </a>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ### E1. Create a New Genie Agent
+-- MAGIC
+-- MAGIC Complete the following steps to create a Genie Agent:
+-- MAGIC
+-- MAGIC 1. In the main navigation sidebar, right-click **Genie Agents** and select **Open Link in New Tab**.
+-- MAGIC
+-- MAGIC 2. Select **+ New** in the top-right corner of the Genie home page.
+-- MAGIC
+-- MAGIC 3. Add the following four tables from your **labuser_YOUR_USER_NAME** catalog and **genie_course_hr** schema, then select **Create**:
+-- MAGIC
+-- MAGIC    - **employees**
+-- MAGIC    - **compensation**
+-- MAGIC    - **managers**
+-- MAGIC    - **resignations**
+-- MAGIC
+-- MAGIC 4. In the **Created Genie Agent** panel on the right (**Configure**), select the **Edit Pencil icon** and configure the following, then select **Save**:
+-- MAGIC
+-- MAGIC    | Field | Value |
+-- MAGIC    |-------|-------|
+-- MAGIC    | Title | `YOUR_NAME - HR People Analytics` |
+-- MAGIC    | Default warehouse | Select your **Serverless SQL Warehouse** |
+-- MAGIC
+-- MAGIC 5. Select the **Data** tab and confirm your setup contains the 4 tables.
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ## F. Add Benchmark Questions
+-- MAGIC
+-- MAGIC Now add **benchmark questions** to establish a baseline for your Genie Agent. 
+-- MAGIC
+-- MAGIC These will help you measure how well Genie performs.
+-- MAGIC
+-- MAGIC #### Remember: Benchmarks are like **tests for Genie**. They define what "correct" looks like and help you track accuracy as you improve the space.
+-- MAGIC
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #1976d2;
+-- MAGIC   background: #e3f2fd;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#0d47a1; margin-bottom:6px; font-size: 1.1em;">
+-- MAGIC     Picking Benchmarks Strategically
+-- MAGIC   </strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC Not every stakeholder question needs to be a benchmark. Benchmarks are **strategically selected** to cover a range of challenges. When choosing benchmarks, aim for:
+-- MAGIC
+-- MAGIC - **A simple baseline** - at least one question Genie should get right out of the box, to confirm the space is working
+-- MAGIC
+-- MAGIC - **Multi-table joins** - questions that require Genie to connect data across tables
+-- MAGIC
+-- MAGIC - **Ambiguous business terms** - words like "underpaid" or "attrition" that have no direct column match and require business context to interpret correctly
+-- MAGIC
+-- MAGIC - **Computed metrics** - questions that require aggregation, filtering, or calculations not obvious from column names alone
+-- MAGIC
+-- MAGIC A good benchmark suite covers **breadth** (different tables, different joins, different challenge types) not just depth (10 variations of the same query pattern).
+-- MAGIC
+-- MAGIC **NOTE:** Your stakeholder questions from Section A are your starting point. Not all of them will become benchmarks — some may become sample questions or just inform your table selection.
+-- MAGIC
+-- MAGIC   </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ### F1. Your Benchmark Questions
+-- MAGIC
+-- MAGIC Using the stakeholder questions from Section A and the data you explored, add **at least 4 benchmarks** to your HR Genie Agent.
+-- MAGIC
+-- MAGIC Below are suggested questions to get you started. 
+-- MAGIC
+-- MAGIC For each one, you will need to:
+-- MAGIC
+-- MAGIC 1. In your HR Genie Agent, select **Benchmark** > **+ Add benchmark**.
+-- MAGIC
+-- MAGIC 2. Enter the question.
+-- MAGIC
+-- MAGIC 3. Write or generate the **ground truth SQL** (replace `labuser_YOUR_USER_NAME` with your catalog name).
+-- MAGIC
+-- MAGIC 4. Select **Add benchmark**.
+-- MAGIC
+-- MAGIC | # | Benchmark Question | Challenge Type | Hint |
+-- MAGIC |---|-------------------|---------------|------|
+-- MAGIC | 1 | *How many active employees do we have?* | Baseline | Filter on the `status` column in `employees` |
+-- MAGIC | 2 | *What is the average salary by department?* | Multi-table join | Join `employees` and `compensation` on `employee_id` |
+-- MAGIC | 3 | *Who are our most underpaid employees?* | Ambiguous business term | "Underpaid" = `comp_ratio` below 1.0 (salary below market benchmark) |
+-- MAGIC | 4 | *Which managers have the highest attrition on their teams?* | Ambiguous term + three-table join | "Attrition" = count of resignations; requires resignations → employees → managers |
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #7b1fa2;
+-- MAGIC   background: #f3e5f5;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#4a148c; margin-bottom:6px; font-size: 1.1em;">You can also add your own benchmarks!</strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC Think about what other questions from the stakeholder list would make good test cases.
+-- MAGIC
+-- MAGIC For training instructions we will keep it to four. Feel free to experiment.
+-- MAGIC
+-- MAGIC   </div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ##### SUGGESTED BENCHMARK SOLUTIONS (PLEASE MODIFY TO USE YOUR CATALOG)
+-- MAGIC
+-- MAGIC <details>
+-- MAGIC <summary>Click to expand suggested ground truth SQL for each benchmark</summary>
+-- MAGIC
+-- MAGIC <br/>
+-- MAGIC
+-- MAGIC **NOTE:** These are suggested solutions. Your SQL may differ and still be valid — there is no single "right" answer. The key is that your ground truth SQL returns the result you consider correct for the question.
+-- MAGIC
+-- MAGIC ---
+-- MAGIC
+-- MAGIC **Benchmark 1: How many active employees do we have?**
+-- MAGIC
+-- MAGIC ```sql
+-- MAGIC SELECT COUNT(*) AS active_employee_count
+-- MAGIC FROM `labuser_YOUR_USER_NAME`.`genie_course_hr`.`employees`
+-- MAGIC WHERE `status` = 'Active';
+-- MAGIC ```
+-- MAGIC
+-- MAGIC ---
+-- MAGIC
+-- MAGIC **Benchmark 2: What is the average salary by department?**
+-- MAGIC
+-- MAGIC ```sql
+-- MAGIC SELECT
+-- MAGIC     e.`department`,
+-- MAGIC     ROUND(AVG(c.`base_salary`), 2) AS avg_salary
+-- MAGIC FROM `labuser_YOUR_USER_NAME`.`genie_course_hr`.`employees` e
+-- MAGIC JOIN `labuser_YOUR_USER_NAME`.`genie_course_hr`.`compensation` c
+-- MAGIC     ON e.`employee_id` = c.`employee_id`
+-- MAGIC GROUP BY e.`department`
+-- MAGIC ORDER BY avg_salary DESC;
+-- MAGIC ```
+-- MAGIC
+-- MAGIC ---
+-- MAGIC
+-- MAGIC **Benchmark 3: Who are our most underpaid employees?**
+-- MAGIC
+-- MAGIC Our business defines "underpaid" as employees with a `comp_ratio` below 1.0.
+-- MAGIC
+-- MAGIC Meaning their `base_salary` is less than the `market_benchmark`.
+-- MAGIC
+-- MAGIC ```sql
+-- MAGIC SELECT
+-- MAGIC     e.`employee_id`,
+-- MAGIC     e.`first_name`,
+-- MAGIC     e.`last_name`,
+-- MAGIC     e.`department`,
+-- MAGIC     e.`job_title`,
+-- MAGIC     c.`base_salary`,
+-- MAGIC     c.`market_benchmark`,
+-- MAGIC     c.`comp_ratio`
+-- MAGIC FROM `labuser_YOUR_USER_NAME`.`genie_course_hr`.`employees` e
+-- MAGIC JOIN `labuser_YOUR_USER_NAME`.`genie_course_hr`.`compensation` c
+-- MAGIC     ON e.`employee_id` = c.`employee_id`
+-- MAGIC WHERE c.`comp_ratio` < 1.0
+-- MAGIC ORDER BY c.`comp_ratio` ASC
+-- MAGIC LIMIT 10;
+-- MAGIC ```
+-- MAGIC
+-- MAGIC ---
+-- MAGIC
+-- MAGIC **Benchmark 4: Which managers have the highest attrition on their teams?**
+-- MAGIC
+-- MAGIC Our business defines "attrition" as the count of resignations per manager. 
+-- MAGIC
+-- MAGIC This requires joining through employees since resignations do not link directly to managers.
+-- MAGIC
+-- MAGIC ```sql
+-- MAGIC SELECT
+-- MAGIC     m.`manager_name`,
+-- MAGIC     m.`department`,
+-- MAGIC     m.`region`,
+-- MAGIC     COUNT(r.`resignation_id`) AS attrition_count
+-- MAGIC FROM `labuser_YOUR_USER_NAME`.`genie_course_hr`.`resignations` r
+-- MAGIC JOIN `labuser_YOUR_USER_NAME`.`genie_course_hr`.`employees` e
+-- MAGIC     ON r.`employee_id` = e.`employee_id`
+-- MAGIC JOIN `labuser_YOUR_USER_NAME`.`genie_course_hr`.`managers` m
+-- MAGIC     ON e.`manager_id` = m.`manager_id`
+-- MAGIC GROUP BY
+-- MAGIC     m.`manager_name`,
+-- MAGIC     m.`department`,
+-- MAGIC     m.`region`
+-- MAGIC ORDER BY attrition_count DESC
+-- MAGIC LIMIT 10;
+-- MAGIC ```
+-- MAGIC
+-- MAGIC </details>
+-- MAGIC
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ### F2. Run All Benchmarks (Chat Mode)
+-- MAGIC
+-- MAGIC After adding your benchmarks:
+-- MAGIC
+-- MAGIC 1. In your HR Genie Agent, select **Benchmarks**.
+-- MAGIC
+-- MAGIC 2. Select **Run all benchmarks** to execute all benchmark questions.
+-- MAGIC
+-- MAGIC 3. As a benchmark completes, review the results.
+-- MAGIC
+-- MAGIC 4. Take note of which benchmarks **pass** and which **fail**. 
+-- MAGIC
+-- MAGIC This is your starting point. In the next lab, you will add metadata and instructions to improve these results.
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #1976d2;
+-- MAGIC   background: #e3f2fd;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#0d47a1; margin-bottom:6px; font-size: 1.1em;">
+-- MAGIC     What to Expect
+-- MAGIC   </strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC Without any metadata, instructions, or example SQL, Genie is working with **table and column names only**.
+-- MAGIC
+-- MAGIC You may see:
+-- MAGIC - Simple questions answered correctly (like counting active employees)
+-- MAGIC - Join-based questions where Genie picks the wrong join path
+-- MAGIC - Ambiguous terms like "underpaid" or "attrition" interpreted differently than expected
+-- MAGIC
+-- MAGIC **This is expected!** The purpose of this lab is to establish a baseline. You will improve these results in the next lab.
+-- MAGIC
+-- MAGIC   </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## G. Conclusion
+-- MAGIC
+-- MAGIC In this lab, you:
+-- MAGIC
+-- MAGIC - Explored the HR dataset and understood its 4 tables and their relationships.
+-- MAGIC - Created a new Genie Agent with the HR tables.
+-- MAGIC - Defined an audience and purpose (HR Business Partners, People Analytics, Department Heads).
+-- MAGIC - Strategically selected and added benchmark questions to establish a baseline accuracy.
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC
+-- MAGIC &copy; <span id="dbx-year"></span> Databricks, Inc. All rights reserved.
+-- MAGIC Apache, Apache Spark, Spark, the Spark Logo, Apache Iceberg, Iceberg, and the Apache Iceberg logo are trademarks of the <a href="https://www.apache.org/" target="_blank">Apache Software Foundation</a>.<br/><br/><a href="https://databricks.com/privacy-policy" target="_blank">Privacy Policy</a> | <a href="https://databricks.com/terms-of-use" target="_blank">Terms of Use</a> | <a href="https://help.databricks.com/" target="_blank">Support</a>
+-- MAGIC <script>
+-- MAGIC   document.getElementById("dbx-year").textContent = new Date().getFullYear();
+-- MAGIC </script>

@@ -1,0 +1,1071 @@
+-- Databricks notebook source
+-- MAGIC %md
+-- MAGIC ![DB Academy](https://files.training.databricks.com/binder/prod_main/building-reliable-conversational-agents-with-genie-en_us-1.0.5/images/20260929T112315Z/Building Reliable Conversational Agents with Genie/Includes/images/db-academy.png)
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC # Demo - Creating and Exploring a Genie Agent
+-- MAGIC
+-- MAGIC ## Overview
+-- MAGIC
+-- MAGIC In this demo, you will create a Genie Agent using the **bakehouse** tables. This is a fictional bakery franchise data you explored in the previous demo. 
+-- MAGIC
+-- MAGIC You will configure the Genie Agent, explore the UI, and interact with Genie using a series of targeted natural language questions. The goal is to observe how Genie behaves out of the box, before any metadata, instructions, or example SQL have been added. 
+-- MAGIC
+-- MAGIC This baseline experience will motivate the improvements covered in later demos.
+-- MAGIC
+-- MAGIC ## Learning Objectives
+-- MAGIC
+-- MAGIC By the end of this demo, you will be able to:
+-- MAGIC
+-- MAGIC 1. **Create a Genie Agent** by selecting Unity Catalog tables and configuring a SQL warehouse.
+-- MAGIC 2. **Navigate the Genie Agent UI** including the chat interface, settings panel, and data tab.
+-- MAGIC 3. **Interpret Genie-generated SQL** to evaluate whether responses are correct and business-aligned.
+-- MAGIC 4. **Identify limitations of an unconfigured Genie Agent** such as ambiguous business terms, unknown column values, and complex join patterns.
+-- MAGIC 5. **Provide feedback on Genie responses** using thumbs up/down ratings and request review to flag answers for improvement.
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ## REQUIRED - DATA SETUP
+-- MAGIC
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #f44336;
+-- MAGIC   background: #ffebee;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#c62828; margin-bottom:6px; font-size: 1.1em;">Data Setup</strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC Before starting this notebook, make sure you ran the **02 Demo - Bakehouse Setup and Data Exploration** notebook once to set up the course data.
+-- MAGIC   </div>
+-- MAGIC </div>
+-- MAGIC
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ## REQUIRED - SELECT A COMPUTE ENVIRONMENT
+-- MAGIC
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #f44336;
+-- MAGIC   background: #ffebee;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#c62828; margin-bottom:6px; font-size: 1.1em;">Select a Serverless SQL Warehouse</strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC Before starting this notebook, select the required compute environment listed below.
+-- MAGIC
+-- MAGIC - **Serverless SQL Warehouse (2X-Small is sufficient)**
+-- MAGIC   - Select **Compute** > **More** > **SQL Warehouse** > Select a SQL Warehouse you have access to.
+-- MAGIC
+-- MAGIC **NOTE:** This notebook was **developed and tested using Serverless SQL Warehouse**. Other compute options may work but are not guaranteed to behave the same or support all features demonstrated.
+-- MAGIC   </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## A. Classroom Setup
+-- MAGIC
+-- MAGIC 1. Run the cell below to initialize your environment.
+
+-- COMMAND ----------
+
+-- MAGIC %run ./Includes/Classroom-Setup-creating-genie-agent
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ## B. Genie Agent Authoring Checklist Overview
+-- MAGIC <br></br>
+-- MAGIC <!--
+-- MAGIC   HOW TO DIM A STEP DURING TEACHING:
+-- MAGIC   Add the class "dim" to any step you want grayed out.
+-- MAGIC   Example: <div class="gsac-step dim" data-step="3" ...>
+-- MAGIC   Remove the "dim" word to bring it back to full color.
+-- MAGIC   You can dim multiple steps at once.
+-- MAGIC -->
+-- MAGIC <style>
+-- MAGIC   .gsac-step.dim {
+-- MAGIC     background: #EEEDE9 !important;
+-- MAGIC     border-color: #C2C2C2 !important;
+-- MAGIC     box-shadow: none !important;
+-- MAGIC     opacity: 0.55;
+-- MAGIC   }
+-- MAGIC   .gsac-step.dim .gsac-step-num {
+-- MAGIC     color: #90A5B1 !important;
+-- MAGIC   }
+-- MAGIC   .gsac-step.dim .gsac-step-title {
+-- MAGIC     color: #5A6F77 !important;
+-- MAGIC   }
+-- MAGIC </style>
+-- MAGIC
+-- MAGIC <div style="max-width: 1280px; margin: 0 auto; font-family: sans-serif; color: #0b2026;">
+-- MAGIC
+-- MAGIC <!-- TITLE BAR -->
+-- MAGIC <div style="background: #1B5162; color: white; border-radius: 8px; padding: 20px 28px; margin-bottom: 22px;">
+-- MAGIC   <div style="font-size: 22pt; font-weight: 700; margin-bottom: 6px;">Genie Agent Authoring Checklist</div>
+-- MAGIC   <div style="font-size: 15pt; font-weight: 400; line-height: 1.45; opacity: 0.95;">A general <b>6-step approach</b> whenever you create a Genie Agent.</div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC <!-- 6-STEP FLOW -->
+-- MAGIC <div style="display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr auto 1fr auto 1fr; gap: 0; align-items: stretch;">
+-- MAGIC   <div class="gsac-step" data-step="1" style="background: #F9F7F4; border: 3px solid #2574B5; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;">
+-- MAGIC     <div class="gsac-step-num" style="font-size: 26pt; font-weight: 800; color: #2574B5; line-height: 1; margin-bottom: 8px;">1</div>
+-- MAGIC     <div class="gsac-step-title" style="font-size: 14pt; font-weight: 600; color: #0b2026; line-height: 1.35;">Start with purpose<br>and questions</div>
+-- MAGIC   </div>
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #618794; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC   <div class="gsac-step" data-step="2" style="background: #F9F7F4; border: 3px solid #02A36F; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;">
+-- MAGIC     <div class="gsac-step-num" style="font-size: 26pt; font-weight: 800; color: #02A36F; line-height: 1; margin-bottom: 8px;">2</div>
+-- MAGIC     <div class="gsac-step-title" style="font-size: 14pt; font-weight: 600; color: #0b2026; line-height: 1.35;">Select a minimal<br>data slice</div>
+-- MAGIC   </div>
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #618794; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC   <div class="gsac-step" data-step="3" style="background: #F9F7F4; border: 3px solid #F8A805; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;">
+-- MAGIC     <div class="gsac-step-num" style="font-size: 26pt; font-weight: 800; color: #F8A805; line-height: 1; margin-bottom: 8px;">3</div>
+-- MAGIC     <div class="gsac-step-title" style="font-size: 14pt; font-weight: 600; color: #0b2026; line-height: 1.35;">Add metadata<br>and synonyms</div>
+-- MAGIC   </div>
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #618794; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC   <div class="gsac-step" data-step="4" style="background: #F9F7F4; border: 3px solid #FF5F46; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;">
+-- MAGIC     <div class="gsac-step-num" style="font-size: 26pt; font-weight: 800; color: #FF5F46; line-height: 1; margin-bottom: 8px;">4</div>
+-- MAGIC     <div class="gsac-step-title" style="font-size: 14pt; font-weight: 600; color: #0b2026; line-height: 1.35;">Encode business<br>logic in SQL</div>
+-- MAGIC   </div>
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #618794; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC   <div class="gsac-step" data-step="5" style="background: #F9F7F4; border: 3px solid #98182A; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;">
+-- MAGIC     <div class="gsac-step-num" style="font-size: 26pt; font-weight: 800; color: #98182A; line-height: 1; margin-bottom: 8px;">5</div>
+-- MAGIC     <div class="gsac-step-title" style="font-size: 14pt; font-weight: 600; color: #0b2026; line-height: 1.35;">Add light global<br>text instructions</div>
+-- MAGIC   </div>
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #618794; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC   <div class="gsac-step" data-step="6" style="background: #F9F7F4; border: 3px solid #1C3037; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;">
+-- MAGIC     <div class="gsac-step-num" style="font-size: 26pt; font-weight: 800; color: #1C3037; line-height: 1; margin-bottom: 8px;">6</div>
+-- MAGIC     <div class="gsac-step-title" style="font-size: 14pt; font-weight: 600; color: #0b2026; line-height: 1.35;">Test, benchmark,<br>and iterate with users</div>
+-- MAGIC   </div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC <div class="rc-wrap">
+-- MAGIC <style>
+-- MAGIC .rc-wrap { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 18px; font-family: sans-serif; }
+-- MAGIC .rc-wrap * { box-sizing: border-box; }
+-- MAGIC .rc-hint { width: 100%; max-width: 1100px; text-align: center; font-size: 14pt; color: #5E7077; font-style: italic; }
+-- MAGIC .rc-hint strong { color: #FF5F46; font-style: normal; font-weight: 700; }
+-- MAGIC .rc-row { display: block; white-space: normal; font-size: 0; width: 100%; max-width: 1100px; }
+-- MAGIC .rc-box { display: inline-block; width: 32%; margin-right: 2%; margin-bottom: 2%; min-height: 90px; background: #F9F7F4; border-top: 8px solid transparent; border-left: 2px solid transparent; border-right: 2px solid transparent; border-bottom: 2px solid transparent; border-radius: 8px; padding: 16px 14px; text-align: center; cursor: pointer; user-select: none; vertical-align: top; transition: transform 0.12s; box-shadow: 0 2px 8px rgba(27,49,57,0.06); white-space: normal; }
+-- MAGIC .rc-box:nth-child(3n) { margin-right: 0; }
+-- MAGIC .rc-box:hover { transform: translateY(-2px); }
+-- MAGIC .rc-box.active { background: #fff; border-left-color: var(--pc); border-right-color: var(--pc); border-bottom-color: var(--pc); }
+-- MAGIC .rc-num { display: inline-block; font-size: 16pt; font-weight: 800; color: var(--pc); margin-bottom: 4px; pointer-events: none; }
+-- MAGIC .rc-label { display: block; font-weight: 700; font-size: 14pt; letter-spacing: 1px; text-transform: uppercase; line-height: 1.2; pointer-events: none; }
+-- MAGIC .rc-title { display: block; font-size: 14pt; color: #0b2026; line-height: 1.3; margin-top: 6px; pointer-events: none; }
+-- MAGIC .rc-detail-wrap { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.35s ease, opacity 0.28s ease, margin-top 0.28s ease; margin-top: 0; width: 100%; max-width: 1100px; }
+-- MAGIC .rc-detail-wrap.open { max-height: 1200px; opacity: 1; margin-top: 12px; }
+-- MAGIC .rc-detail-card { background: #F9F7F4; border-radius: 10px; padding: 22px 26px; border-top: 7px solid #ccc; box-shadow: 0 2px 8px rgba(27,49,57,0.06); }
+-- MAGIC .rc-detail-title { font-size: 17pt; font-weight: 700; color: #0b2026; margin-bottom: 12px; line-height: 1.3; }
+-- MAGIC .rc-detail-body { font-size: 14pt; color: #0b2026; line-height: 1.55; }
+-- MAGIC .rc-detail-body ul { margin: 0; padding-left: 22px; }
+-- MAGIC .rc-detail-body li { margin-bottom: 8px; }
+-- MAGIC .rc-detail-body li:last-child { margin-bottom: 0; }
+-- MAGIC .rc-detail-body ul ul { margin-top: 6px; }
+-- MAGIC .rc-example { margin-top: 14px; padding: 12px 14px; border-radius: 8px; font-size: 14pt; line-height: 1.5; }
+-- MAGIC .rc-example strong { display: block; margin-bottom: 4px; }
+-- MAGIC .rc-callout { margin-top: 13px; padding: 10px 12px; border-radius: 8px; font-size: 14pt; line-height: 1.5; }
+-- MAGIC </style>
+-- MAGIC
+-- MAGIC <div class="rc-hint">Six steps to build a Genie Agent. For more detail, <strong>click each card below</strong>.</div>
+-- MAGIC
+-- MAGIC <div class="rc-row">
+-- MAGIC   <span class="rc-box" data-id="0" onclick="rcSelect(0)" style="--pc:#4299E0; border-top-color:#4299E0;">
+-- MAGIC     <span class="rc-num">1</span>
+-- MAGIC     <span class="rc-label" style="color:#4299E0;">Purpose &amp; Questions</span>
+-- MAGIC     <span class="rc-title">Start with a narrow topic, audience, and real business questions</span>
+-- MAGIC   </span><span class="rc-box" data-id="1" onclick="rcSelect(1)" style="--pc:#00A972; border-top-color:#00A972;">
+-- MAGIC     <span class="rc-num">2</span>
+-- MAGIC     <span class="rc-label" style="color:#00A972;">Data Slice</span>
+-- MAGIC     <span class="rc-title">Select the minimal set of tables or views</span>
+-- MAGIC   </span><span class="rc-box" data-id="2" onclick="rcSelect(2)" style="--pc:#FFAB00; border-top-color:#FFAB00;">
+-- MAGIC     <span class="rc-num">3</span>
+-- MAGIC     <span class="rc-label" style="color:#FFAB00;">Metadata &amp; Synonyms</span>
+-- MAGIC     <span class="rc-title">Reflect business language and hide the noise</span>
+-- MAGIC   </span><span class="rc-box" data-id="3" onclick="rcSelect(3)" style="--pc:#FF5F46; border-top-color:#FF5F46;">
+-- MAGIC     <span class="rc-num">4</span>
+-- MAGIC     <span class="rc-label" style="color:#FF5F46;">Business Logic in SQL</span>
+-- MAGIC     <span class="rc-title">Encode metrics and filters as SQL and examples</span>
+-- MAGIC   </span><span class="rc-box" data-id="4" onclick="rcSelect(4)" style="--pc:#98102A; border-top-color:#98102A;">
+-- MAGIC     <span class="rc-num">5</span>
+-- MAGIC     <span class="rc-label" style="color:#98102A;">Global Text (Last Resort)</span>
+-- MAGIC     <span class="rc-title">Add light global instructions only when nothing else fits</span>
+-- MAGIC   </span><span class="rc-box" data-id="5" onclick="rcSelect(5)" style="--pc:#1B3139; border-top-color:#1B3139;">
+-- MAGIC     <span class="rc-num">6</span>
+-- MAGIC     <span class="rc-label" style="color:#1B3139;">Test &amp; Iterate</span>
+-- MAGIC     <span class="rc-title">Benchmark, pilot, monitor, and continuously refine</span>
+-- MAGIC   </span>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC <div class="rc-detail-wrap" id="rc-detail-wrap">
+-- MAGIC   <div class="rc-detail-card" id="rc-detail-card"></div>
+-- MAGIC </div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC <script>
+-- MAGIC var REVEAL = [
+-- MAGIC   { title: "1. Start with purpose and questions", color: "#4299E0",
+-- MAGIC     text: "<ul>"
+-- MAGIC       + "<li>Define a <strong>narrow topic</strong> and <strong>clear audience</strong>"
+-- MAGIC         + "<ul><li><i>Example: \"Sales pipeline for NA sales managers\"</i></li></ul></li>"
+-- MAGIC       + "<li>Write <strong>5&ndash;10 real business questions</strong> this audience asks</li>"
+-- MAGIC       + "<li>These become your <strong>sample questions</strong> and <strong>benchmarks</strong></li>"
+-- MAGIC       + "</ul>"
+-- MAGIC       + "<div class='rc-example' style='background:rgba(66,153,224,0.10);border-left:4px solid #4299E0;'>"
+-- MAGIC         + "<strong>Bakehouse example:</strong>"
+-- MAGIC         + "<ul><li><b>Audience:</b> Bakehouse franchise managers</li>"
+-- MAGIC         + "<li>How many customers do we have?</li>"
+-- MAGIC         + "<li>What are our top 5 franchise locations by revenue?</li>"
+-- MAGIC         + "<li>Who are our best customers?</li>"
+-- MAGIC         + "<li>Count of bad reviews by location?</li>"
+-- MAGIC         + "<li>How many franchises does each supplier serve?</li>"
+-- MAGIC         + "<li>What are total sales by region?</li></ul></div>" },
+-- MAGIC
+-- MAGIC   { title: "2. Select a minimal data slice", color: "#00A972",
+-- MAGIC     text: "<ul>"
+-- MAGIC       + "<li>Work backwards from your questions to identify the <strong>smallest set of tables or views</strong> needed</li>"
+-- MAGIC       + "<li>Aim for <strong>3&ndash;5 tables or views</strong></li>"
+-- MAGIC       + "<li>Stay well under the <strong>30-table limit</strong></li>"
+-- MAGIC       + "<li>Prefer <strong>pre-joined or metric views</strong> (metric views are outside the scope of this course) to:"
+-- MAGIC         + "<ul><li>Hide join complexity</li><li>Encode business logic once</li></ul></li>"
+-- MAGIC       + "</ul>"
+-- MAGIC       + "<div class='rc-example' style='background:rgba(0,169,114,0.10);border-left:4px solid #00A972;'>"
+-- MAGIC         + "<strong>Bakehouse example:</strong>"
+-- MAGIC         + "<ul><li><code>sales_customers_gold</code> - customer profiles and locations</li>"
+-- MAGIC         + "<li><code>sales_franchises_gold</code> - franchise locations and size</li>"
+-- MAGIC         + "<li><code>sales_suppliers_gold</code> - ingredient suppliers</li>"
+-- MAGIC         + "<li><code>sales_transactions_gold</code> - sales transactions and revenue</li>"
+-- MAGIC         + "<li><code>media_customer_reviews_gold</code> - reviews and sentiment</li></ul></div>" },
+-- MAGIC
+-- MAGIC   { title: "3. Add metadata and synonyms", color: "#FFAB00",
+-- MAGIC     text: "<ul>"
+-- MAGIC       + "<li>Ensure names and descriptions reflect <strong>business language</strong></li>"
+-- MAGIC       + "<li><strong>Hide</strong> confusing or rarely used columns</li>"
+-- MAGIC       + "<li>Add <strong>synonyms</strong> so Genie understands how users speak"
+-- MAGIC         + "<ul><li>Example: \"rep\" &rarr; \"salesperson\"</li></ul></li>"
+-- MAGIC       + "</ul>"
+-- MAGIC       + "<div class='rc-example' style='background:rgba(255,171,0,0.12);border-left:4px solid #FFAB00;'>"
+-- MAGIC         + "<strong>Bakehouse example:</strong>"
+-- MAGIC         + "<ul><li><code>sentiment</code> - add valid values: <code>positive</code>, <code>negative</code>, <code>mixed</code></li>"
+-- MAGIC         + "<li><code>country</code> - disambiguate customer country vs. franchise country</li>"
+-- MAGIC         + "<li>Synonym: \"revenue\" &rarr; <code>totalPrice</code></li>"
+-- MAGIC         + "<li>Synonym: \"rating\" &rarr; <code>sentiment</code></li></ul></div>" },
+-- MAGIC
+-- MAGIC   { title: "4. Encode business logic in SQL", color: "#FF5F46",
+-- MAGIC     text: "<ul>"
+-- MAGIC       + "<li>Create <strong>SQL expressions</strong> for core metrics and filters</li>"
+-- MAGIC       + "<li>Add high-quality <strong>example SQL queries</strong></li>"
+-- MAGIC       + "<li><strong>Parameterize</strong> inputs like region, product, and dates</li>"
+-- MAGIC       + "</ul>"
+-- MAGIC       + "<div class='rc-example' style='background:rgba(255,95,70,0.10);border-left:4px solid #FF5F46;'>"
+-- MAGIC         + "<strong>Bakehouse example:</strong>"
+-- MAGIC         + "<ul><li>Example SQL: \"Top products by revenue\" using <code>SUM(totalPrice)</code></li>"
+-- MAGIC         + "<li>Example SQL: <code>LEFT JOIN</code> + <code>IS NULL</code> to find franchises without a valid supplier</li>"
+-- MAGIC         + "<li>SQL expression: revenue = <code>SUM(totalPrice)</code></li></ul></div>"
+-- MAGIC       + "<div class='rc-callout' style='background:rgba(255,95,70,0.10);border-left:4px solid #FF5F46;'>"
+-- MAGIC         + "<strong>Guidance:</strong> SQL expressions and example queries are the primary way Genie learns your business logic.</div>" },
+-- MAGIC
+-- MAGIC   { title: "5. Add light global text instructions (last resort)", color: "#98102A",
+-- MAGIC     text: "<ul>"
+-- MAGIC       + "<li>Use for <strong>clarification behavior</strong> and <strong>formatting rules</strong></li>"
+-- MAGIC       + "<li>Keep instructions <strong>short and specific</strong></li>"
+-- MAGIC       + "<li>Ensure <strong>consistency</strong> with SQL logic and examples</li>"
+-- MAGIC       + "<li>Text instructions are only for context that should be applied <strong>globally</strong> and do not fit into the other formats</li>"
+-- MAGIC       + "<li>Think of text instructions as <strong>last resorts</strong> for any general guidance</li>"
+-- MAGIC       + "</ul>"
+-- MAGIC       + "<div class='rc-example' style='background:rgba(152,16,42,0.10);border-left:4px solid #98102A;'>"
+-- MAGIC         + "<strong>Bakehouse example:</strong>"
+-- MAGIC         + "<ul><li>\"Best customer\" = highest total spend using <code>SUM(totalPrice)</code></li>"
+-- MAGIC         + "<li>Always use <code>ILIKE</code> for text matching</li>"
+-- MAGIC         + "<li>Round all currency values to 2 decimal places</li>"
+-- MAGIC         + "<li>Default to franchise country when asked about location</li></ul></div>"
+-- MAGIC       + "<div class='rc-callout' style='background:rgba(152,16,42,0.10);border-left:4px solid #98102A;'>"
+-- MAGIC         + "Avoid duplication or contradictions with your SQL definitions.</div>" },
+-- MAGIC
+-- MAGIC   { title: "6. Test, benchmark, and iterate", color: "#1B3139",
+-- MAGIC     text: "<ul>"
+-- MAGIC       + "<li>Ask your <strong>original questions</strong> and inspect <strong>generated SQL</strong></li>"
+-- MAGIC       + "<li>Turn strong questions into <strong>benchmarks</strong></li>"
+-- MAGIC       + "<li>Run a <strong>pilot</strong> with real users and gather feedback</li>"
+-- MAGIC       + "<li>Use <strong>Monitoring</strong> to identify failure points</li>"
+-- MAGIC       + "<li><strong>Continuously refine</strong> data, metadata, SQL, and instructions</li>"
+-- MAGIC       + "</ul>"
+-- MAGIC       + "<div class='rc-example' style='background:rgba(27,49,57,0.10);border-left:4px solid #1B3139;'>"
+-- MAGIC         + "<strong>Bakehouse example:</strong>"
+-- MAGIC         + "<ul><li>Re-ask all 5 original questions after each improvement</li>"
+-- MAGIC         + "<li>Add benchmark: \"Top 5 franchises by revenue\" with expected SQL using <code>SUM(totalPrice)</code></li>"
+-- MAGIC         + "<li>Check the Monitoring tab for thumbs-down responses</li>"
+-- MAGIC         + "<li>Iterate on instructions and metadata based on failures</li></ul></div>"
+-- MAGIC       + "<div class='rc-callout' style='background:rgba(27,49,57,0.10);border-left:4px solid #1B3139;'>"
+-- MAGIC         + "This is where great Genie Agents are actually built, through iteration.</div>" }
+-- MAGIC ];
+-- MAGIC var rcCurrent = null;
+-- MAGIC function rcSelect(id) {
+-- MAGIC   var wrap = document.getElementById('rc-detail-wrap');
+-- MAGIC   var card = document.getElementById('rc-detail-card');
+-- MAGIC   var d = REVEAL[id];
+-- MAGIC   document.querySelectorAll('.rc-box').forEach(function(b) {
+-- MAGIC     b.classList.toggle('active', parseInt(b.dataset.id) === id && rcCurrent !== id);
+-- MAGIC   });
+-- MAGIC   if (rcCurrent === id) { wrap.classList.remove('open'); rcCurrent = null; return; }
+-- MAGIC   rcCurrent = id;
+-- MAGIC   card.style.borderTopColor = d.color;
+-- MAGIC   card.innerHTML = '<div class="rc-detail-title" style="color:' + d.color + ';">' + d.title + '</div><div class="rc-detail-body">' + d.text + '</div>';
+-- MAGIC   wrap.classList.add('open');
+-- MAGIC }
+-- MAGIC </script>
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## C. Create a Genie Agent
+-- MAGIC
+-- MAGIC In this section, you will create a new Genie Agent through the Databricks UI and add the **bakehouse** tables to it.
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC <!--
+-- MAGIC   HOW TO DIM A STEP DURING TEACHING:
+-- MAGIC   Each step card has its full-color inline styles AND a dimmed copy in a comment block above it.
+-- MAGIC   To dim a step: replace its <div ...> opening tag with the commented "DIM" version below it.
+-- MAGIC   To re-color: do the reverse.
+-- MAGIC -->
+-- MAGIC
+-- MAGIC <div style="max-width: 1280px; margin: 0 auto; font-family: sans-serif; color: #0b2026;">
+-- MAGIC
+-- MAGIC <!-- 6-STEP FLOW -->
+-- MAGIC <div style="display: grid; grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr auto 1fr auto 1fr; gap: 0; align-items: stretch;">
+-- MAGIC
+-- MAGIC   <!-- STEP 1 (active) -->
+-- MAGIC   <div style="background: #F9F7F4; border: 3px solid #2574B5; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #2574B5; line-height: 1; margin-bottom: 8px;">1</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #0b2026; line-height: 1.35;">Start with purpose<br>and questions</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #618794; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC
+-- MAGIC   <!-- STEP 2 (active) -->
+-- MAGIC   <div style="background: #F9F7F4; border: 3px solid #02A36F; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #02A36F; line-height: 1; margin-bottom: 8px;">2</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #0b2026; line-height: 1.35;">Select a minimal<br>data slice</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #C2C2C2; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC
+-- MAGIC   <!-- STEP 3 (DIMMED) -->
+-- MAGIC   <!-- ACTIVE: <div style="background: #F9F7F4; border: 3px solid #F8A805; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;"> -->
+-- MAGIC   <div style="background: #EEEDE9; border: 3px solid #C2C2C2; border-radius: 10px; padding: 16px 12px; box-shadow: none; text-align: center; min-width: 0; opacity: 0.7;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #90A5B1; line-height: 1; margin-bottom: 8px;">3</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #5A6F77; line-height: 1.35;">Add metadata<br>and synonyms</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #C2C2C2; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC
+-- MAGIC   <!-- STEP 4 (DIMMED) -->
+-- MAGIC   <!-- ACTIVE: <div style="background: #F9F7F4; border: 3px solid #FF5F46; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;"> -->
+-- MAGIC   <div style="background: #EEEDE9; border: 3px solid #C2C2C2; border-radius: 10px; padding: 16px 12px; box-shadow: none; text-align: center; min-width: 0; opacity: 0.7;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #90A5B1; line-height: 1; margin-bottom: 8px;">4</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #5A6F77; line-height: 1.35;">Encode business<br>logic in SQL</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #C2C2C2; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC
+-- MAGIC   <!-- STEP 5 (DIMMED) -->
+-- MAGIC   <!-- ACTIVE: <div style="background: #F9F7F4; border: 3px solid #98182A; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;"> -->
+-- MAGIC   <div style="background: #EEEDE9; border: 3px solid #C2C2C2; border-radius: 10px; padding: 16px 12px; box-shadow: none; text-align: center; min-width: 0; opacity: 0.7;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #90A5B1; line-height: 1; margin-bottom: 8px;">5</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #5A6F77; line-height: 1.35;">Add light global<br>text instructions</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC   <div style="display: flex; align-items: center; justify-content: center; color: #C2C2C2; font-size: 22pt; line-height: 1;">&rarr;</div>
+-- MAGIC
+-- MAGIC   <!-- STEP 6 (DIMMED) -->
+-- MAGIC   <!-- ACTIVE: <div style="background: #F9F7F4; border: 3px solid #1C3037; border-radius: 10px; padding: 16px 12px; box-shadow: 0 2px 8px rgba(27,49,57,0.08); text-align: center; min-width: 0;"> -->
+-- MAGIC   <div style="background: #EEEDE9; border: 3px solid #C2C2C2; border-radius: 10px; padding: 16px 12px; box-shadow: none; text-align: center; min-width: 0; opacity: 0.7;">
+-- MAGIC     <div style="font-size: 26pt; font-weight: 800; color: #90A5B1; line-height: 1; margin-bottom: 8px;">6</div>
+-- MAGIC     <div style="font-size: 14pt; font-weight: 600; color: #5A6F77; line-height: 1.35;">Test, benchmark,<br>and iterate with users</div>
+-- MAGIC   </div>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC
+-- MAGIC
+-- MAGIC ## Audience and Questions
+-- MAGIC
+-- MAGIC **Audience:** Bakehouse franchise managers
+-- MAGIC
+-- MAGIC - How Many Customers Do We Have?
+-- MAGIC - What are our top 5 franchise locations by revenue?
+-- MAGIC - Who are our best customers?
+-- MAGIC - Count of Bad Reviews by Location?
+-- MAGIC - How Many Franchises Does Each Supplier Serve?
+-- MAGIC - What Are Total Sales by Region?
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ### C1. Create a New Genie Agent
+-- MAGIC
+-- MAGIC Complete the following steps to create a Genie Agent:
+-- MAGIC
+-- MAGIC 1. In the main navigation sidebar, right-click **Genie Agents** and select **Open Link in New Tab**.
+-- MAGIC    - If you have existing Genie Agents, they will be listed here. For this demo, you will create a new one.
+-- MAGIC
+-- MAGIC 2. Select **+ New** in the top-right corner of the Genie home page.
+-- MAGIC
+-- MAGIC 3. Add the following five tables from your **labuser_YOUR_USER_NAME** catalog and **genie_course_bakehouse** schema, then select **Create**:
+-- MAGIC
+-- MAGIC    - **sales_customers_gold**
+-- MAGIC    - **sales_franchises_gold**
+-- MAGIC    - **sales_suppliers_gold**
+-- MAGIC    - **sales_transactions_gold**
+-- MAGIC    - **media_customer_reviews_gold**
+-- MAGIC
+-- MAGIC 4. In the **Created Genie Agent** panel on the right (you might have to select **Configure**) complete the following:
+-- MAGIC    - Under **About this agent**, select the **Edit Pencil icon**.
+-- MAGIC    - Configure the following, then select **Save**:
+-- MAGIC
+-- MAGIC    | Field | Value |
+-- MAGIC    |-------|-------|
+-- MAGIC    | Title | `YOUR_NAME - Bakehouse Sales` |
+-- MAGIC    | Default warehouse | Select your **Serverless SQL Warehouse** |
+-- MAGIC
+-- MAGIC 5. Select the **Sources** tab and confirm your setup contains the 5 tables.
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ### C2. View Genie Technical Requirements and Limits
+-- MAGIC
+-- MAGIC 1. Navigate to the Technical requirements and limits documentation page:
+-- MAGIC [AWS](https://docs.databricks.com/aws/en/genie/set-up#technical-requirements-and-limits) |
+-- MAGIC [Azure](https://learn.microsoft.com/en-us/azure/databricks/genie-agents/set-up#tech-requirements) |
+-- MAGIC [GCP](https://docs.databricks.com/gcp/en/genie/set-up#technical-requirements-and-limits)
+-- MAGIC
+-- MAGIC
+-- MAGIC 2. Review the listed limitations to understand current capabilities and constraints when working with Genie Agents.
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## D. Exploring the Genie UI
+-- MAGIC
+-- MAGIC After creating the Genie Agent, you are taken to the Genie Agent interface.
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ### D1. The Chat Interface
+-- MAGIC
+-- MAGIC The main area of a Genie Agent is the **chat interface**. This is where users type natural language questions and receive answers.
+-- MAGIC
+-- MAGIC 1. Review the chat interface options:
+-- MAGIC
+-- MAGIC <br></br>
+-- MAGIC
+-- MAGIC <div class="two-pane">
+-- MAGIC
+-- MAGIC <style>
+-- MAGIC
+-- MAGIC .two-sides {
+-- MAGIC     display: flex;
+-- MAGIC     justify-content: center;
+-- MAGIC     align-items: stretch;
+-- MAGIC     gap: 40px;
+-- MAGIC     flex-wrap: wrap;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box {
+-- MAGIC     width: 480px;
+-- MAGIC     min-height: 320px;
+-- MAGIC     background: #F9F7F4;
+-- MAGIC     border-radius: 8px;
+-- MAGIC     box-shadow: 0 2px 8px rgba(27,49,57,0.06);
+-- MAGIC     display: flex;
+-- MAGIC     flex-direction: column;
+-- MAGIC     justify-content: flex-start;
+-- MAGIC     gap: 6px;
+-- MAGIC     padding: 22px;
+-- MAGIC     text-align: left;
+-- MAGIC     position: relative;
+-- MAGIC     box-sizing: border-box;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box::before {
+-- MAGIC     content: "";
+-- MAGIC     position: absolute;
+-- MAGIC     top: 0;
+-- MAGIC     left: 0;
+-- MAGIC     width: 100%;
+-- MAGIC     height: 8px;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box.chat::before { background: #4299E0; }
+-- MAGIC .box.agent::before { background: #FF5F46; }
+-- MAGIC
+-- MAGIC .box-icon {
+-- MAGIC     text-align: center;
+-- MAGIC     margin-top: 4px;
+-- MAGIC     margin-bottom: 0;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-icon img {
+-- MAGIC     height: 175px;
+-- MAGIC     width: auto;
+-- MAGIC     object-fit: contain;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-title {
+-- MAGIC     font-size: 20pt;
+-- MAGIC     font-weight: 700;
+-- MAGIC     color: #0b2026;
+-- MAGIC     text-align: center;
+-- MAGIC     margin-top: 0;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-text {
+-- MAGIC     font-size: 14pt;
+-- MAGIC     color: #0b2026;
+-- MAGIC     line-height: 1.55;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-text ul {
+-- MAGIC     margin: 0;
+-- MAGIC     padding-left: 18px;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-text li {
+-- MAGIC     margin-bottom: 12px;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-text li:last-child {
+-- MAGIC     margin-bottom: 0;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .note {
+-- MAGIC     margin-top: 10px;
+-- MAGIC     padding: 10px 12px;
+-- MAGIC     background: #EEEDE9;
+-- MAGIC     border-left: 4px solid #FF5F46;
+-- MAGIC     border-radius: 6px;
+-- MAGIC     font-size: 13pt;
+-- MAGIC }
+-- MAGIC
+-- MAGIC </style>
+-- MAGIC
+-- MAGIC <div class="two-sides">
+-- MAGIC
+-- MAGIC <div class="box chat">
+-- MAGIC <div class="box-icon"><img src="https://files.training.databricks.com/binder/prod_main/building-reliable-conversational-agents-with-genie-en_us-1.0.5/images/20260929T112315Z/Building Reliable Conversational Agents with Genie/Includes/images/icons/chat.png"></div>
+-- MAGIC <div class="box-title">Chat</div>
+-- MAGIC <div class="box-text">
+-- MAGIC <ul>
+-- MAGIC <li>Use standard chat for quick, focused questions and fast iteration</li>
+-- MAGIC <li>Use a Genie Agent to explore business data:
+-- MAGIC <a href="https://docs.databricks.com/aws/en/genie-agents/talk-to-genie">AWS</a> |
+-- MAGIC <a href="https://learn.microsoft.com/en-us/azure/databricks/genie-agents/talk-to-genie">Azure</a> |
+-- MAGIC <a href="https://docs.databricks.com/gcp/en/genie-agents/talk-to-genie">GCP</a></li>
+-- MAGIC
+-- MAGIC </ul>
+-- MAGIC </div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC <div class="box agent">
+-- MAGIC <div class="box-icon"><img src="https://files.training.databricks.com/binder/prod_main/building-reliable-conversational-agents-with-genie-en_us-1.0.5/images/20260929T112315Z/Building Reliable Conversational Agents with Genie/Includes/images/icons/agent.png"></div>
+-- MAGIC <div class="box-title">Agent</div>
+-- MAGIC <div class="box-text">
+-- MAGIC <ul>
+-- MAGIC <li>Use Agent mode for deeper investigation, more complex analysis and hypothesis testing</li>
+-- MAGIC <li>Agent mode in Genie Agents:
+-- MAGIC <a href="https://docs.databricks.com/aws/en/genie/agent-mode">AWS</a> |
+-- MAGIC <a href="https://learn.microsoft.com/en-us/azure/databricks/genie-agents/concepts#agent-mode">Azure</a> |
+-- MAGIC <a href="https://docs.databricks.com/gcp/en/genie/agent-mode">GCP</a></li>
+-- MAGIC </ul>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ### D2. Explore the Configuration Panel
+-- MAGIC
+-- MAGIC The configuration panel allows you to configure how the Genie Agent behaves.
+-- MAGIC
+-- MAGIC 1. Select the **![Gear](https://files.training.databricks.com/binder/prod_main/building-reliable-conversational-agents-with-genie-en_us-1.0.5/images/20260929T112315Z/Building Reliable Conversational Agents with Genie/Includes/images/icons/gear.png) Configure** icon to open the settings panel (if not already open).
+-- MAGIC
+-- MAGIC 2. Review the top options in a Genie Agent:
+-- MAGIC
+-- MAGIC    a. **Configure**
+-- MAGIC    - Set up the space.
+-- MAGIC    - Choose the SQL warehouse.
+-- MAGIC    - Add or remove tables.
+-- MAGIC    - Define instructions and example SQL.
+-- MAGIC
+-- MAGIC    b. **Benchmark**
+-- MAGIC    - Benchmarks allow you to create a set of test questions that you can run to assess Genie's overall response accuracy.
+-- MAGIC    - Add key questions with expected answers.
+-- MAGIC    - Run benchmark suites and track accuracy over time.
+-- MAGIC
+-- MAGIC    > **NOTE:** Benchmark questions run as new conversations. They do not carry the same context as a threaded Genie conversation. Each question is processed as a new query, using the instructions defined in the space, including any provided example SQL and SQL functions.
+-- MAGIC
+-- MAGIC    c. **Monitor**
+-- MAGIC    - See how the space is used.
+-- MAGIC    - View all questions, ratings, feedback and problem cases.
+-- MAGIC    - Use it to decide what to fix or improve.
+-- MAGIC
+-- MAGIC 3. Review the **Knowledge Store** (Genie context) tabs in the right panel:
+-- MAGIC
+-- MAGIC    a. **About**
+-- MAGIC    - Shows the owner, warehouse, and description.
+-- MAGIC    - Lists common or starter questions.
+-- MAGIC
+-- MAGIC    b. **Sources**
+-- MAGIC    - The list of Unity Catalog tables available to the Genie Agent. You should see the five tables you added: the four `sales_*` tables and `media_customer_reviews_gold`.
+-- MAGIC    - Lets you inspect the schema Genie uses.
+-- MAGIC
+-- MAGIC    c. **Instructions**
+-- MAGIC    - Add general instructions on how you want this Genie Agent to behave.
+-- MAGIC
+-- MAGIC    d. **Examples**
+-- MAGIC    - Enables you to  teach your agent how to answer questions with curated examples.
+-- MAGIC    - Shows how Genie has been "taught."
+-- MAGIC    - Example SQL **Joins**, **Expressions**, **Filter**, and **Queries** that define your core business logic.
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ### D3. Viewing Table Details
+-- MAGIC
+-- MAGIC You can inspect the tables and columns that Genie has access to directly from the Genie Agent.
+-- MAGIC
+-- MAGIC 1. In the settings panel, under **Sources**, select one of the tables.
+-- MAGIC
+-- MAGIC 2. Review the table details:
+-- MAGIC
+-- MAGIC    - **Column names and data types** - Each column is listed with its name and type.
+-- MAGIC    - **Column descriptions** - Notice that the column descriptions are **currently empty**.
+-- MAGIC       - Genie relies on **column names** and **sample values** to interpret questions when no additional metadata or context is provided.
+-- MAGIC
+-- MAGIC 3. Repeat for the other tables to familiarize yourself with the full schema available to Genie.
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #f44336;
+-- MAGIC   background: #ffebee;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#c62828; margin-bottom:6px; font-size: 1.1em;">Important: No Metadata in Unity Catalog, Instructions, or Benchmarks Added Intentionally</strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC In this first demo, we are **not** adding any of the following to the Genie Agent:
+-- MAGIC
+-- MAGIC - **Table or column metadata** - descriptions and synonyms on the tables that help Genie understand what each table and column represents
+-- MAGIC
+-- MAGIC - **SQL logic** - joins, SQL expressions, or example queries that encode business metrics and patterns
+-- MAGIC
+-- MAGIC - **Sample questions** - example queries that help Genie understand common question patterns
+-- MAGIC
+-- MAGIC - **Text instructions** - behavioral guidance like formatting rules or clarification prompts
+-- MAGIC
+-- MAGIC This is intentional. By starting without any of these, you will see how Genie interprets questions using only table and column names. In later demos, you will iteratively add each component and observe how can improve Genie's accuracy and relevance, and provide more consistent results.
+-- MAGIC   </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ## E. Ask Your Genie Agent a Question
+-- MAGIC
+-- MAGIC Now that your Genie Agent is created, it is time to interact with it and see how it works!
+-- MAGIC
+-- MAGIC <div style="border-left: 4px solid #1976d2; background: #e3f2fd; padding: 16px 20px; border-radius: 4px; margin: 16px 0;">
+-- MAGIC <div style="display: flex; align-items: flex-start; gap: 12px;">
+-- MAGIC <div>
+-- MAGIC <strong style="color: #0d47a1; font-size: 1.1em;">How Genie Answers Questions</strong>
+-- MAGIC <p style="margin: 8px 0 0 0; color: #333;">When you ask Genie a question, it follows this process:</p>
+-- MAGIC <ol style="margin: 8px 0 0 16px; color: #333;">
+-- MAGIC <li><strong>Interprets</strong> your natural language question</li>
+-- MAGIC <li><strong>Generates SQL</strong> based on the available table schemas, instructions, and sample queries</li>
+-- MAGIC <li><strong>Executes the SQL</strong> against the configured SQL warehouse</li>
+-- MAGIC <li><strong>Returns the results</strong> as a table, along with the generated SQL for transparency</li>
+-- MAGIC </ol>
+-- MAGIC <p style="margin: 8px 0 0 0; color: #333;">You can always review the SQL that Genie generated by expanding the query details in the response.</p>
+-- MAGIC </div>
+-- MAGIC </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC ### E1. Question 1: Baseline - How Many Customers Do We Have?
+-- MAGIC
+-- MAGIC This first question establishes the basic workflow: ask a question, review the result, and inspect the generated SQL.
+-- MAGIC
+-- MAGIC 1. In the Genie chat interface select **Chat** 
+-- MAGIC     - Then ask the following question: <span style="background-color:#d4edda; padding:4px 6px; border-radius:4px;"><b>How many customers do we have?</b></span>
+-- MAGIC
+-- MAGIC <br></br>
+-- MAGIC | # | Question | Why We Are Asking This | Potential Issues Without Metadata |
+-- MAGIC |---|----------|-----------------------|----------------------------------|
+-- MAGIC | 1 | *How many customers do we have?* | **Baseline** - Simple, unambiguous question to ask → SQL → result workflow. | Minimal - Genie should answer this correctly out of the box. |
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC 2. After Genie responds:
+-- MAGIC    - Confirm the result is **300**.
+-- MAGIC
+-- MAGIC    - Review the **analysis**.
+-- MAGIC       - Select **⌄** > **Show code** to view the SQL.
+-- MAGIC       - Verify Genie queried **sales_customers_gold** with:
+-- MAGIC
+-- MAGIC ```sql
+-- MAGIC SELECT COUNT(DISTINCT `customerID`) AS total_customers
+-- MAGIC FROM `labuser`.`genie_course_bakehouse`.`sales_customers_gold`;
+-- MAGIC ```
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #1976d2;
+-- MAGIC   background: #e3f2fd;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#0d47a1; margin-bottom:6px; font-size: 1.1em;">
+-- MAGIC     Genie Response
+-- MAGIC   </strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC This is a straightforward question that Genie should handle easily.
+-- MAGIC
+-- MAGIC The table name **sales_customers_gold** and the question are clearly aligned.
+-- MAGIC
+-- MAGIC   </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ### E2. After a Genie Response
+-- MAGIC
+-- MAGIC 1. Look at the Genie results (after viewing the SQL code from above).
+-- MAGIC
+-- MAGIC <img src="https://files.training.databricks.com/binder/prod_main/building-reliable-conversational-agents-with-genie-en_us-1.0.5/images/20260929T112315Z/Building Reliable Conversational Agents with Genie/Includes/images/demo-creating-genie-agent/question-genie-checkpoint.png" width="1300">
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC 2. Select the **More Options** button _(Three dots next to "Hide Code")_. 
+-- MAGIC     - Notice you can perform different operations with this response:
+-- MAGIC     - **NOTE:** **These options are for the Genie curator. General users will not see the options below.**
+-- MAGIC
+-- MAGIC <br></br>
+-- MAGIC
+-- MAGIC <div class="two-pane">
+-- MAGIC
+-- MAGIC <style>
+-- MAGIC
+-- MAGIC .two-sides {
+-- MAGIC     display: flex;
+-- MAGIC     justify-content: center;
+-- MAGIC     align-items: stretch;
+-- MAGIC     gap: 40px;
+-- MAGIC     flex-wrap: wrap;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box {
+-- MAGIC     width: 480px;
+-- MAGIC     min-height: 300px;
+-- MAGIC     background: #F9F7F4;
+-- MAGIC     border: none;
+-- MAGIC     border-radius: 8px;
+-- MAGIC     box-shadow: 0 2px 8px rgba(27,49,57,0.06);
+-- MAGIC     overflow: hidden;
+-- MAGIC     display: flex;
+-- MAGIC     flex-direction: column;
+-- MAGIC     justify-content: flex-start;
+-- MAGIC     gap: 6px;
+-- MAGIC     padding: 22px;
+-- MAGIC     text-align: left;
+-- MAGIC     position: relative;
+-- MAGIC     box-sizing: border-box;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box::before {
+-- MAGIC     content: "";
+-- MAGIC     position: absolute;
+-- MAGIC     top: 0;
+-- MAGIC     left: 0;
+-- MAGIC     width: 100%;
+-- MAGIC     height: 8px;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box.instruction::before {
+-- MAGIC     background: #FF5F46;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box.benchmark::before {
+-- MAGIC     background: #1B5162;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-icon {
+-- MAGIC     text-align: center;
+-- MAGIC     margin-top: 4px;
+-- MAGIC     margin-bottom: 0;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-icon img {
+-- MAGIC     height: 175px;
+-- MAGIC     width: auto;
+-- MAGIC     object-fit: contain;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-title {
+-- MAGIC     font-size: 20pt;
+-- MAGIC     font-weight: 700;
+-- MAGIC     color: #0b2026;
+-- MAGIC     margin-top: 0;
+-- MAGIC     margin-bottom: 4px;
+-- MAGIC     text-align: center;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-text {
+-- MAGIC     font-size: 14pt;
+-- MAGIC     color: #0b2026;
+-- MAGIC     line-height: 1.55;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-text ul {
+-- MAGIC     margin: 0;
+-- MAGIC     padding-left: 18px;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-text li {
+-- MAGIC     margin-bottom: 12px;
+-- MAGIC }
+-- MAGIC
+-- MAGIC .box-text li:last-child {
+-- MAGIC     margin-bottom: 0;
+-- MAGIC }
+-- MAGIC
+-- MAGIC </style>
+-- MAGIC
+-- MAGIC <div class="two-sides">
+-- MAGIC
+-- MAGIC <div class="box instruction">
+-- MAGIC <div class="box-icon"><img src="https://files.training.databricks.com/binder/prod_main/building-reliable-conversational-agents-with-genie-en_us-1.0.5/images/20260929T112315Z/Building Reliable Conversational Agents with Genie/Includes/images/icons/instructions.png"></div>
+-- MAGIC <div class="box-title">Add Instruction</div>
+-- MAGIC <div class="box-text">
+-- MAGIC <ul>
+-- MAGIC <li>Saves this question and Genie's SQL as an instruction or example for the space</li>
+-- MAGIC <li>Helps Genie reuse this pattern for similar questions in the future</li>
+-- MAGIC <li>Changes <strong>future behavior</strong> by teaching Genie, not the current answer</li>
+-- MAGIC </ul>
+-- MAGIC </div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC <div class="box benchmark">
+-- MAGIC <div class="box-icon"><img src="https://files.training.databricks.com/binder/prod_main/building-reliable-conversational-agents-with-genie-en_us-1.0.5/images/20260929T112315Z/Building Reliable Conversational Agents with Genie/Includes/images/icons/benchmarks.png"></div>
+-- MAGIC <div class="box-title">Add to Benchmark</div>
+-- MAGIC <div class="box-text">
+-- MAGIC <ul>
+-- MAGIC <li>Saves this question, optionally with the correct SQL, as a benchmark test case</li>
+-- MAGIC <li>Used later to run benchmark suites and measure accuracy over time</li>
+-- MAGIC <li>For <strong>evaluation only</strong>. <strong>Benchmarks do not</strong> change how Genie answers</li>
+-- MAGIC </ul>
+-- MAGIC </div>
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC 3. Look at the **Is this useful?** option. This enables general users to rate the response. You can then review the feedback in **Monitoring**.
+-- MAGIC     - **NOTE:** We will look at these features in more detail in another demonstration.
+-- MAGIC <br></br>
+-- MAGIC <br></br>
+-- MAGIC <div class="three-pane">
+-- MAGIC <style>
+-- MAGIC .three-sides {
+-- MAGIC     display: flex;
+-- MAGIC     justify-content: center;
+-- MAGIC     align-items: stretch;
+-- MAGIC     gap: 40px;
+-- MAGIC     flex-wrap: wrap;
+-- MAGIC }
+-- MAGIC .box {
+-- MAGIC     width: 340px;
+-- MAGIC     min-height: 300px;
+-- MAGIC     background: #F9F7F4;
+-- MAGIC     border-radius: 8px;
+-- MAGIC     box-shadow: 0 2px 8px rgba(27,49,57,0.06);
+-- MAGIC     display: flex;
+-- MAGIC     flex-direction: column;
+-- MAGIC     justify-content: flex-start;
+-- MAGIC     gap: 14px;
+-- MAGIC     padding: 22px;
+-- MAGIC     text-align: left;
+-- MAGIC     position: relative;
+-- MAGIC     box-sizing: border-box;
+-- MAGIC }
+-- MAGIC .box::before {
+-- MAGIC     content: "";
+-- MAGIC     position: absolute;
+-- MAGIC     top: 0;
+-- MAGIC     left: 0;
+-- MAGIC     width: 100%;
+-- MAGIC     height: 8px;
+-- MAGIC }
+-- MAGIC .box.yes::before { background: #00A972; }
+-- MAGIC .box.no::before { background: #98102A; }
+-- MAGIC .box.review::before { background: #FFAB00; }
+-- MAGIC .box-title {
+-- MAGIC     font-size: 20pt;
+-- MAGIC     font-weight: 700;
+-- MAGIC     color: #0b2026;
+-- MAGIC     text-align: center;
+-- MAGIC     margin-top: 6px;
+-- MAGIC }
+-- MAGIC .box-text {
+-- MAGIC     font-size: 14pt;
+-- MAGIC     color: #0b2026;
+-- MAGIC     line-height: 1.55;
+-- MAGIC }
+-- MAGIC .box-text ul {
+-- MAGIC     margin: 0;
+-- MAGIC     padding-left: 18px;
+-- MAGIC }
+-- MAGIC .box-text li {
+-- MAGIC     margin-bottom: 12px;
+-- MAGIC }
+-- MAGIC .box-text li:last-child {
+-- MAGIC     margin-bottom: 0;
+-- MAGIC }
+-- MAGIC </style>
+-- MAGIC <div class="three-sides">
+-- MAGIC <div class="box yes">
+-- MAGIC <div class="box-title">👍 Thumbs Up</div>
+-- MAGIC <div class="box-text">
+-- MAGIC <ul>
+-- MAGIC <li>Upvotes the answer</li>
+-- MAGIC <li>Tells Genie authors this response was helpful</li>
+-- MAGIC <li>Helps identify good examples to turn into instructions or benchmarks later</li>
+-- MAGIC </ul>
+-- MAGIC </div>
+-- MAGIC </div>
+-- MAGIC <div class="box no">
+-- MAGIC <div class="box-title">👎 Thumbs Down</div>
+-- MAGIC <div class="box-text">
+-- MAGIC <ul>
+-- MAGIC <li>Downvotes the answer</li>
+-- MAGIC <li>Prompts the user to select a reason <strong>Why</strong> and add a comment</li>
+-- MAGIC <li>Flags the response in the Monitoring tab for author review</li>
+-- MAGIC <li>Signals that the space needs improvement for this type of question</li>
+-- MAGIC </ul>
+-- MAGIC </div>
+-- MAGIC </div>
+-- MAGIC <div class="box review">
+-- MAGIC <div class="box-title">🔍 Request Review</div>
+-- MAGIC <div class="box-text">
+-- MAGIC <ul>
+-- MAGIC <li>Escalates the response to space owners or editors for manual review</li>
+-- MAGIC <li>Available in <strong>Chat mode</strong> only</li>
+-- MAGIC </ul>
+-- MAGIC </div>
+-- MAGIC </div>
+-- MAGIC </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ### E3. Add a Response and Save as a Benchmark
+-- MAGIC 1. Since you are confident in this response, select **Yes (thumbs up)**.
+-- MAGIC
+-- MAGIC     Notice you can (As the curator, general users would not see these options):
+-- MAGIC     - **Save as a benchmark**
+-- MAGIC
+-- MAGIC 2. For the **Save as a benchmark** pop up (or the drop down from earlier) select **Save** to add a benchmark. We will look at this more in the next demonstration.
+-- MAGIC
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC <div style="
+-- MAGIC   border-left: 4px solid #1976d2;
+-- MAGIC   background: #e3f2fd;
+-- MAGIC   padding: 14px 18px;
+-- MAGIC   border-radius: 4px;
+-- MAGIC   margin: 16px 0;
+-- MAGIC ">
+-- MAGIC   <strong style="display:block; color:#0d47a1; margin-bottom:6px; font-size: 1.1em;">
+-- MAGIC     What Just Happened?
+-- MAGIC   </strong>
+-- MAGIC   <div style="color:#333;">
+-- MAGIC
+-- MAGIC You just completed the basic Genie workflow:
+-- MAGIC
+-- MAGIC 1. **Asked** a natural language question
+-- MAGIC 2. **Reviewed** the generated SQL and result
+-- MAGIC 3. **Rated** the response (thumbs up, consumers can provide this feedback)
+-- MAGIC 4. **Saved** it as a benchmark (curator)
+-- MAGIC
+-- MAGIC This is the same loop you will use throughout the course to evaluate and improve your Genie Agent.
+-- MAGIC
+-- MAGIC   </div>
+-- MAGIC </div>
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## F. Conclusion
+-- MAGIC
+-- MAGIC In this demo, you:
+-- MAGIC
+-- MAGIC - Created a Genie Agent using five bakehouse gold tables from Unity Catalog.
+-- MAGIC - Explored the Genie Agent UI, including the chat interface, settings panel, data tab, and feedback options.
+-- MAGIC - Asked Genie a baseline question and learned the workflow for reviewing responses.
+-- MAGIC - Saved your first benchmark from a Genie response.
+
+-- COMMAND ----------
+
+-- MAGIC %md-sandbox
+-- MAGIC
+-- MAGIC &copy; <span id="dbx-year"></span> Databricks, Inc. All rights reserved.
+-- MAGIC Apache, Apache Spark, Spark, the Spark Logo, Apache Iceberg, Iceberg, and the Apache Iceberg logo are trademarks of the <a href="https://www.apache.org/" target="_blank">Apache Software Foundation</a>.<br/><br/><a href="https://databricks.com/privacy-policy" target="_blank">Privacy Policy</a> | <a href="https://databricks.com/terms-of-use" target="_blank">Terms of Use</a> | <a href="https://help.databricks.com/" target="_blank">Support</a>
+-- MAGIC <script>
+-- MAGIC   document.getElementById("dbx-year").textContent = new Date().getFullYear();
+-- MAGIC </script>
